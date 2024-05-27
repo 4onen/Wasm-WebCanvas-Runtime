@@ -13,6 +13,7 @@ const SFX_CHANNEL = 2;
 
 const title: []const u8 = "Targets Practice!";
 var reticleSpin: f64 = 0.0;
+var screenFlash: f64 = 0.0;
 
 var prng: std.rand.DefaultPrng = std.rand.DefaultPrng.init(0);
 
@@ -33,6 +34,7 @@ export fn init(width: u16, height: u16) void {
     iface.setAudioChannelType(SFX_CHANNEL, iface.AudioChannelType.Sawtooth);
     canvasWidth = width;
     canvasHeight = height;
+    screenFlash = 1.0;
 }
 
 export fn mousemove(x: u16, y: u16) void {
@@ -77,6 +79,14 @@ fn drawReticle(x_pos: u16, y_pos: u16, spin: f64) void {
         const y2 = y + (outerRadius * @sin(angle));
         iface.drawLine(x1, y1, x2, y2, 2);
     }
+}
+
+fn drawScreenFlash(deltaTimeSeconds: f64) void {
+    iface.setFillColor(255, 255, 255);
+    iface.setAlpha(screenFlash);
+    iface.drawRect(0, 0, @floatFromInt(canvasWidth), @floatFromInt(canvasHeight));
+    iface.setAlpha(1.0);
+    screenFlash *= (1.0 - deltaTimeSeconds * 5.0);
 }
 
 fn drawTarget(x: u16, y: u16) void {
@@ -198,6 +208,7 @@ fn drawMainMenu() void {
 export fn draw(deltaTimeSeconds: f64) void {
     iface.clear();
 
+    drawScreenFlash(deltaTimeSeconds);
     updateMusic(deltaTimeSeconds);
     if (!game) {
         // Main menu
@@ -232,6 +243,7 @@ fn updateTargetHit() void {
         if (distance < targetRadius) {
             iface.playFrequencyChirp(SFX_CHANNEL, 440, 20, 0.5);
             score += @intFromFloat(100 - (distance / targetRadius * 100));
+            screenFlash = 1.0;
             targetsHit += 1;
             genTargetPosition();
         }

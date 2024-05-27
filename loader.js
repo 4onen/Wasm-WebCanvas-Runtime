@@ -236,6 +236,7 @@ class MyWASMCanvasLoader {
                 // Drawing interface
                 clear: this.clear.bind(this),
                 setFillColor: this.setFillColor.bind(this),
+                setAlpha: this.setAlpha.bind(this),
                 setStrokeColor: this.setStrokeColor.bind(this),
                 drawRect: this.drawRect.bind(this),
                 drawCircle: this.drawCircle.bind(this),
@@ -574,6 +575,13 @@ class MyWASMCanvasLoader {
      */
     setFillColor(r, g, b) {
         this.ctx.fillStyle = `rgb(${r},${g},${b})`;
+    }
+
+    /**
+     * Sets the fill alpha of the canvas.
+     */
+    setAlpha(a) {
+        this.ctx.globalAlpha = a;
     }
 
     /**

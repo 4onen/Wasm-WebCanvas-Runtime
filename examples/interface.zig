@@ -14,6 +14,7 @@ pub extern fn halt() void;
 // Drawing interface
 pub extern fn clear() void;
 pub extern fn setFillColor(r: u8, g: u8, b: u8) void;
+pub extern fn setAlpha(alpha: f64) void;
 pub extern fn setStrokeColor(r: u8, g: u8, b: u8) void;
 pub extern fn drawRect(x: f64, y: f64, width: f64, height: f64) void;
 pub extern fn drawCircle(x: f64, y: f64, radius: f64) void;
