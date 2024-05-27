@@ -18,8 +18,10 @@ var screenFlash: f64 = 0.0;
 var prng: std.rand.DefaultPrng = std.rand.DefaultPrng.init(0);
 
 const targetRadius: u16 = 36;
-var targetX: u16 = 0;
-var targetY: u16 = 0;
+var targetX: f64 = 0;
+var targetY: f64 = 0;
+var targetTargetX: u16 = 0;
+var targetTargetY: u16 = 0;
 
 var game: bool = false;
 var time: f64 = 0.0;
@@ -35,6 +37,10 @@ export fn init(width: u16, height: u16) void {
     canvasWidth = width;
     canvasHeight = height;
     screenFlash = 1.0;
+
+    genTargetPosition();
+    targetX = @floatFromInt(targetTargetX);
+    targetY = @floatFromInt(targetTargetY);
 }
 
 export fn mousemove(x: u16, y: u16) void {
@@ -55,8 +61,8 @@ const PI = 3.14159265358979323846264338;
 
 fn genTargetPosition() void {
     const padding = 50;
-    targetX = std.rand.uintLessThan(prng.random(), u16, canvasWidth-2*padding)+padding;
-    targetY = std.rand.uintLessThan(prng.random(), u16, canvasHeight-2*padding)+padding;
+    targetTargetX = std.rand.uintLessThan(prng.random(), u16, canvasWidth-2*padding)+padding;
+    targetTargetY = std.rand.uintLessThan(prng.random(), u16, canvasHeight-2*padding)+padding;
 }
 
 fn drawReticle(x_pos: u16, y_pos: u16, spin: f64) void {
@@ -90,6 +96,10 @@ fn drawScreenFlash(deltaTimeSeconds: f64) void {
 }
 
 fn drawTarget(x: u16, y: u16) void {
+    drawTargetFloat(@floatFromInt(x), @floatFromInt(y));
+}
+
+fn drawTargetFloat(x: f64, y: f64) void {
     const targetColored = .{255, 50, 50};
     const targetWhite = .{255, 255, 255};
     var color = true;
@@ -101,7 +111,7 @@ fn drawTarget(x: u16, y: u16) void {
         } else {
             iface.setFillColor(targetWhite[0], targetWhite[1], targetWhite[2]);
         }
-        iface.drawCircle(@floatFromInt(x), @floatFromInt(y), @floatFromInt(radius));
+        iface.drawCircle(x, y, @floatFromInt(radius));
         radius -= 6;
         color = !color;
     }
@@ -215,8 +225,8 @@ export fn draw(deltaTimeSeconds: f64) void {
         drawMainMenu();
     } else {
         // Game
-        drawTarget(targetX, targetY);
-        updateTargetHit();
+        updateTargetHit(deltaTimeSeconds);
+        drawTargetFloat(targetX, targetY);
         drawReticle(mouseX, mouseY, reticleSpin);
         drawScore(10,20);
         time += deltaTimeSeconds;
@@ -230,15 +240,16 @@ export fn draw(deltaTimeSeconds: f64) void {
     reticleSpin = @rem(reticleSpin, PI);
 }
 
-fn updateTargetHit() void {
+fn updateTargetHit(deltaTimeSeconds: f64) void {
+    targetX += (@as(f64,@floatFromInt(targetTargetX)) - targetX) * deltaTimeSeconds * 10.0;
+    targetY += (@as(f64,@floatFromInt(targetTargetY)) - targetY) * deltaTimeSeconds * 10.0;
+
     if (mouseDown) {
         // Left mouse button
         const x: f64 = @floatFromInt(mouseX);
         const y: f64 = @floatFromInt(mouseY);
-        const tx: f64 = @floatFromInt(targetX);
-        const ty: f64 = @floatFromInt(targetY);
-        const dx: f64 = x - tx;
-        const dy: f64 = y - ty;
+        const dx: f64 = x - targetX;
+        const dy: f64 = y - targetY;
         const distance: f64 = @sqrt(dx * dx + dy * dy);
         if (distance < targetRadius) {
             iface.playFrequencyChirp(SFX_CHANNEL, 440, 20, 0.5);
