@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WASM Loader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light dark;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        /* Dark mode */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: initial;
+            }
+        }
+
+        canvas {
+            border: 1px solid;
+        }
+    </style>
+    <script src="loader.js"></script>
+    <script defer>
+        "use strict";
+        let loader = null;
+        const load_module = async (module) => {
+            if (loader) {
+                loader.destroy();
+            }
+            const canvas = document.getElementById('gameCanvas');
+            if (!(canvas instanceof HTMLCanvasElement)) {
+                alert('Canvas not found');
+                return;
+            }
+            const debugConsole = document.getElementById('debugConsole');
+            const debugConsoleHeader = document.createElement('summary');
+            debugConsoleHeader.textContent = 'Debug output';
+            debugConsole.replaceChildren(debugConsoleHeader);
+            loader = new MyWASMCanvasLoader(canvas, debugConsole);
+            await loader.load(module);
+        };
+        window.addEventListener('DOMContentLoaded', () => {
+            const gameSelect = document.getElementById('loadButton');
+            gameSelect.addEventListener('click', async () => {
+                const gameSelect = document.getElementById('gameSelect');
+                if (!(gameSelect instanceof HTMLSelectElement)) {
+                    alert('Game select not found');
+                    return;
+                }
+                await load_module(`build/${gameSelect.value}`);
+            });
+        });
+        window.addEventListener('dragover', (event) => {
+            event.preventDefault();
+        });
+        window.addEventListener('drop', (event) => {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (!file) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const buffer = event.target.result;
+                // We need a Uint8Array to pass to WebAssembly.instantiate
+                const module = new Uint8Array(buffer);
+                await load_module(module);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</head>
+
+<body>
+    <div id="Controls">
+        <select id="gameSelect">
+            <option>fizzbuzz.wasm</option>
+            <option>targets.wasm</option>
+        </select>
+        <button id="loadButton">Load</button>
+        <button id="haltButton" onclick="if(loader) {loader.halt()}">Halt</button>
+    </div>
+    <canvas id="gameCanvas" width="880" height="660">
+        Browser does not support the HTML5 canvas tag.
+    </canvas>
+    <details id="debugConsole" style="width:100%">
+    </details>
+</body>
+
+</html>
