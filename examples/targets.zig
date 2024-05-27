@@ -279,7 +279,7 @@ fn updateTargetHit(deltaTimeSeconds: f64) void {
         const dy: f64 = y - targetY;
         const distance: f64 = @sqrt(dx * dx + dy * dy);
         if (distance < targetRadius) {
-            iface.playFrequencyChirp(SFX_CHANNEL, 440, 20, 0.5);
+            iface.playFrequencyChirp(SFX_CHANNEL, 440+prng.random().uintLessThan(u16, 100), 20, 0.5);
             score += @intFromFloat(100 - (distance / targetRadius * 100));
             screenShakeIntensity = 20.0;
             screenFlash = 1.0;
