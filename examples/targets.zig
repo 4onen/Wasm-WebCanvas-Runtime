@@ -31,6 +31,10 @@ fn drawLineShake(x1: f64, y1: f64, x2: f64, y2: f64, thickness: f64) void {
     iface.drawLine(x1 + screenShakeOffsetX, y1 + screenShakeOffsetY, x2 + screenShakeOffsetX, y2 + screenShakeOffsetY, thickness);
 }
 
+fn drawTextShake(x: f64, y: f64, text: []const u8) void {
+    iface.drawTextString(x + screenShakeOffsetX, y + screenShakeOffsetY, text);
+}
+
 fn updateShake(deltaTimeSeconds: f64) void {
     screenShakeIntensity *= (1.0 - deltaTimeSeconds * 15.0);
     screenShakeOffsetX = prng.random().floatNorm(f64) * screenShakeIntensity;
@@ -147,12 +151,9 @@ fn drawScore(x_pos: u16, y_pos: u16) void {
     const x: f64 = @floatFromInt(x_pos);
     const y: f64 = @floatFromInt(y_pos);
     var buffer: [20]u8 = undefined;
-    const out1 = std.fmt.bufPrint(&buffer, "Time: {d}", .{@as(u32, @intFromFloat(time))}) catch unreachable;
-    iface.drawText(x, y, out1.ptr, out1.len);
-    const out2 = std.fmt.bufPrint(&buffer, "Score: {d}", .{score}) catch unreachable;
-    iface.drawText(x, y+12, out2.ptr, out2.len);
-    const out3 = std.fmt.bufPrint(&buffer, "Remaining: {d}", .{targetsTarget - targetsHit}) catch unreachable;
-    iface.drawText(x, y+24, out3.ptr, out3.len);
+    drawTextShake(x, y, std.fmt.bufPrint(&buffer, "Time: {d}", .{@as(u32, @intFromFloat(time))}) catch unreachable);
+    drawTextShake(x, y+12, std.fmt.bufPrint(&buffer, "Score: {d}", .{score}) catch unreachable);
+    drawTextShake(x, y+24, std.fmt.bufPrint(&buffer, "Remaining: {d}", .{targetsTarget - targetsHit}) catch unreachable);
 }
 
 var buttonHovered: ?[*]const u8 = null;
@@ -194,7 +195,7 @@ fn immediateModeButton(x_pos: u16, y_pos: u16, text: []const u8, options: Button
     }
 
     iface.setFillColor(0, 0, 0);
-    iface.drawText(x + 20, y + 20, text.ptr, text.len);
+    drawTextShake(x + 20, y + 20, text);
 
     return result;
 }
@@ -207,14 +208,17 @@ fn drawMainMenu() void {
     drawReticle(titleX - 30, titleY - 20, 0.5*reticleSpin);
 
     iface.setFillColor(255, 90, 60);
-    iface.drawText(@floatFromInt(titleX), @floatFromInt(titleY), title.ptr, title.len);
+    drawTextShake(@floatFromInt(titleX), @floatFromInt(titleY), title);
     if (time > 0) {
         const lastgame_offset = 170;
         const lastgame: []const u8 = "Last Game";
-        iface.drawText(@floatFromInt(titleX + lastgame_offset), @floatFromInt(titleY+24), lastgame.ptr, lastgame.len);
+        drawTextShake(@floatFromInt(titleX + lastgame_offset), @floatFromInt(titleY+24), lastgame);
         var buffer: [20]u8 = undefined;
-        const out = std.fmt.bufPrint(&buffer, "Target: {d}", .{targetsTarget}) catch unreachable;
-        iface.drawText(@floatFromInt(titleX + lastgame_offset), @floatFromInt(titleY+36), out.ptr, out.len);
+        drawTextShake(
+            @floatFromInt(titleX + lastgame_offset),
+            @floatFromInt(titleY+36),
+            std.fmt.bufPrint(&buffer, "Target: {d}", .{targetsTarget}) catch unreachable
+        );
         drawScore(titleX + lastgame_offset, titleY+48);
     }
 

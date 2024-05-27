@@ -21,6 +21,10 @@ pub extern fn drawCircle(x: f64, y: f64, radius: f64) void;
 pub extern fn drawLine(x1: f64, y1: f64, x2: f64, y2: f64, thickness: f64) void;
 pub extern fn drawText(x: f64, y: f64, text_ptr: [*]const u8, text_len: usize) void;
 
+pub fn drawTextString(x: f64, y: f64, text: []const u8) void {
+    drawText(x, y, text.ptr, text.len);
+}
+
 // Audio interface
 pub extern fn setAudioChannelCount(channel_count: u8) void;
 pub const AudioChannelType = enum(u8) {
