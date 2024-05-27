@@ -15,6 +15,28 @@ const title: []const u8 = "Targets Practice!";
 var reticleSpin: f64 = 0.0;
 var screenFlash: f64 = 0.0;
 
+var screenShakeIntensity: f64 = 0.0;
+var screenShakeOffsetX: f64 = 0.0;
+var screenShakeOffsetY: f64 = 0.0;
+
+fn drawRectShake(x: f64, y: f64, width: f64, height: f64) void {
+    iface.drawRect(x + screenShakeOffsetX, y + screenShakeOffsetY, width, height);
+}
+
+fn drawCircleShake(x: f64, y: f64, radius: f64) void {
+    iface.drawCircle(x + screenShakeOffsetX, y + screenShakeOffsetY, radius);
+}
+
+fn drawLineShake(x1: f64, y1: f64, x2: f64, y2: f64, thickness: f64) void {
+    iface.drawLine(x1 + screenShakeOffsetX, y1 + screenShakeOffsetY, x2 + screenShakeOffsetX, y2 + screenShakeOffsetY, thickness);
+}
+
+fn updateShake(deltaTimeSeconds: f64) void {
+    screenShakeIntensity *= (1.0 - deltaTimeSeconds * 15.0);
+    screenShakeOffsetX = prng.random().floatNorm(f64) * screenShakeIntensity;
+    screenShakeOffsetY = prng.random().floatNorm(f64) * screenShakeIntensity;
+}
+
 var prng: std.rand.DefaultPrng = std.rand.DefaultPrng.init(0);
 
 const targetRadius: u16 = 36;
@@ -29,6 +51,7 @@ var score: u32 = 0;
 var targetsHit: u8 = 0;
 var targetsTarget: u8 = 0;
 
+
 export fn init(width: u16, height: u16) void {
     iface.setWindowTitle(title.ptr, title.len);
     iface.setTargetFPS(60);
@@ -36,6 +59,7 @@ export fn init(width: u16, height: u16) void {
     iface.setAudioChannelType(SFX_CHANNEL, iface.AudioChannelType.Sawtooth);
     canvasWidth = width;
     canvasHeight = height;
+    screenShakeIntensity = 20.0;
     screenFlash = 1.0;
 
     genTargetPosition();
@@ -46,6 +70,8 @@ export fn init(width: u16, height: u16) void {
 export fn mousemove(x: u16, y: u16) void {
     mouseX = x;
     mouseY = y;
+    const movement: f64 = @floatFromInt(x+y);
+    screenShakeIntensity += movement/10000.0;
 }
 
 export fn mousedown(button: u8) void {
@@ -69,7 +95,7 @@ fn drawReticle(x_pos: u16, y_pos: u16, spin: f64) void {
     const x: f64 = @floatFromInt(x_pos);
     const y: f64 = @floatFromInt(y_pos);
     iface.setFillColor(255, 128, 128);
-    iface.drawCircle(x, y, 5);
+    drawCircleShake(x, y, 5);
     iface.setStrokeColor(255, 128, 128);
     // We want the reticle to spin, so we need
     // to calculate the angle based on the current
@@ -83,14 +109,14 @@ fn drawReticle(x_pos: u16, y_pos: u16, spin: f64) void {
         const y1 = y + (innerRadius * @sin(angle));
         const x2 = x + (outerRadius * @cos(angle));
         const y2 = y + (outerRadius * @sin(angle));
-        iface.drawLine(x1, y1, x2, y2, 2);
+        drawLineShake(x1, y1, x2, y2, 2);
     }
 }
 
 fn drawScreenFlash(deltaTimeSeconds: f64) void {
     iface.setFillColor(255, 255, 255);
     iface.setAlpha(screenFlash);
-    iface.drawRect(0, 0, @floatFromInt(canvasWidth), @floatFromInt(canvasHeight));
+    drawRectShake(0, 0, @floatFromInt(canvasWidth), @floatFromInt(canvasHeight));
     iface.setAlpha(1.0);
     screenFlash *= (1.0 - deltaTimeSeconds * 5.0);
 }
@@ -111,7 +137,7 @@ fn drawTargetFloat(x: f64, y: f64) void {
         } else {
             iface.setFillColor(targetWhite[0], targetWhite[1], targetWhite[2]);
         }
-        iface.drawCircle(x, y, @floatFromInt(radius));
+        drawCircleShake(x, y, @floatFromInt(radius));
         radius -= 6;
         color = !color;
     }
@@ -144,7 +170,7 @@ fn immediateModeButton(x_pos: u16, y_pos: u16, text: []const u8, options: Button
     const buttonWidth: f64 = options.width;
     const buttonHeight: f64 = options.height;
     iface.setFillColor(255, 255, 255);
-    iface.drawRect(x, y, buttonWidth, buttonHeight);
+    drawRectShake(x, y, buttonWidth, buttonHeight);
 
     var result = false;
 
@@ -154,7 +180,7 @@ fn immediateModeButton(x_pos: u16, y_pos: u16, text: []const u8, options: Button
     const dy: f64 = my - y;
     if (dx >= 0 and dx <= buttonWidth and dy >= 0 and dy <= buttonHeight) {
         iface.setFillColor(200, 200, 200);
-        iface.drawRect(x, y, buttonWidth, buttonHeight);
+        drawRectShake(x, y, buttonWidth, buttonHeight);
         if (buttonHovered != text.ptr) {
             iface.playFrequencyChirp(UI_CHANNEL, 120, 20, 0.3);
             buttonHovered = text.ptr;
@@ -218,6 +244,7 @@ fn drawMainMenu() void {
 export fn draw(deltaTimeSeconds: f64) void {
     iface.clear();
 
+    updateShake(deltaTimeSeconds);
     drawScreenFlash(deltaTimeSeconds);
     updateMusic(deltaTimeSeconds);
     if (!game) {
@@ -254,6 +281,7 @@ fn updateTargetHit(deltaTimeSeconds: f64) void {
         if (distance < targetRadius) {
             iface.playFrequencyChirp(SFX_CHANNEL, 440, 20, 0.5);
             score += @intFromFloat(100 - (distance / targetRadius * 100));
+            screenShakeIntensity = 20.0;
             screenFlash = 1.0;
             targetsHit += 1;
             genTargetPosition();
