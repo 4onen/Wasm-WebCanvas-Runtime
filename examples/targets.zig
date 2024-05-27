@@ -7,6 +7,10 @@ var mouseX: u16 = 0;
 var mouseY: u16 = 0;
 var mouseDown: bool = false;
 
+const MUSIC_CHANNEL = 0;
+const UI_CHANNEL = 1;
+const SFX_CHANNEL = 2;
+
 const title: []const u8 = "Targets Practice!";
 var reticleSpin: f64 = 0.0;
 
@@ -25,18 +29,32 @@ var targetsTarget: u8 = 0;
 export fn init(width: u16, height: u16) void {
     iface.setWindowTitle(title.ptr, title.len);
     iface.setTargetFPS(60);
+    iface.setAudioChannelCount(3);
+    iface.setAudioChannelType(SFX_CHANNEL, iface.AudioChannelType.Sawtooth);
     canvasWidth = width;
     canvasHeight = height;
+}
 
-    // Set the target to a random location
-    genTargetPosition();
+export fn mousemove(x: u16, y: u16) void {
+    mouseX = x;
+    mouseY = y;
+}
+
+export fn mousedown(button: u8) void {
+    if (button == 0) {
+        mouseDown = true;
+
+        if (game) {
+        }
+    }
 }
 
 const PI = 3.14159265358979323846264338;
 
 fn genTargetPosition() void {
-    targetX = std.rand.uintLessThan(prng.random(), u16, canvasWidth);
-    targetY = std.rand.uintLessThan(prng.random(), u16, canvasHeight);
+    const padding = 50;
+    targetX = std.rand.uintLessThan(prng.random(), u16, canvasWidth-2*padding)+padding;
+    targetY = std.rand.uintLessThan(prng.random(), u16, canvasHeight-2*padding)+padding;
 }
 
 fn drawReticle(x_pos: u16, y_pos: u16, spin: f64) void {
@@ -91,13 +109,20 @@ fn drawScore(x_pos: u16, y_pos: u16) void {
     iface.drawText(x, y+24, out3.ptr, out3.len);
 }
 
+var buttonHovered: ?[*]const u8 = null;
+
+const ButtonOptions = struct {
+    width: f64 = 150,
+    height: f64 = 50,
+};
+
 /// Draws a button immediately to the screen and
 /// returns true if the button is clicked.
-fn immediateModeButton(x_pos: u16, y_pos: u16, text: []const u8) bool {
+fn immediateModeButton(x_pos: u16, y_pos: u16, text: []const u8, options: ButtonOptions) bool {
     const x: f64 = @floatFromInt(x_pos);
     const y: f64 = @floatFromInt(y_pos);
-    const buttonWidth: f64 = 150;
-    const buttonHeight: f64 = 50;
+    const buttonWidth: f64 = options.width;
+    const buttonHeight: f64 = options.height;
     iface.setFillColor(255, 255, 255);
     iface.drawRect(x, y, buttonWidth, buttonHeight);
 
@@ -110,7 +135,16 @@ fn immediateModeButton(x_pos: u16, y_pos: u16, text: []const u8) bool {
     if (dx >= 0 and dx <= buttonWidth and dy >= 0 and dy <= buttonHeight) {
         iface.setFillColor(200, 200, 200);
         iface.drawRect(x, y, buttonWidth, buttonHeight);
-        result = mouseDown;
+        if (buttonHovered != text.ptr) {
+            iface.playFrequencyChirp(UI_CHANNEL, 120, 20, 0.3);
+            buttonHovered = text.ptr;
+        }
+        if (mouseDown) {
+            result = true;
+            iface.playFrequencyChirp(UI_CHANNEL, 180, 10, 0.3);
+        }
+    } else if (buttonHovered == text.ptr) {
+        buttonHovered = null;
     }
 
     iface.setFillColor(0, 0, 0);
@@ -140,7 +174,7 @@ fn drawMainMenu() void {
 
     const buttonX = titleX;
     const buttonY = titleY+20;
-    if (immediateModeButton(buttonX, buttonY, "To Five")) {
+    if (immediateModeButton(buttonX, buttonY, "To Five", .{})) {
         game = true;
         time = 0.0;
         score = 0;
@@ -148,7 +182,7 @@ fn drawMainMenu() void {
         targetsTarget = 5;
         prng.seed(@bitCast(reticleSpin));
         genTargetPosition();
-    } else if (immediateModeButton(buttonX, buttonY+60, "To Twenty")) {
+    } else if (immediateModeButton(buttonX, buttonY+60, "To Twenty", .{})) {
         game = true;
         time = 0.0;
         score = 0;
@@ -156,7 +190,7 @@ fn drawMainMenu() void {
         targetsTarget = 20;
         prng.seed(@bitCast(reticleSpin));
         genTargetPosition();
-    } else if (immediateModeButton(buttonX, buttonY + 120, "Quit")) {
+    } else if (immediateModeButton(buttonX, buttonY + 120, "Quit", .{})) {
         iface.halt();
     }
 }
@@ -164,15 +198,16 @@ fn drawMainMenu() void {
 export fn draw(deltaTimeSeconds: f64) void {
     iface.clear();
 
+    updateMusic(deltaTimeSeconds);
     if (!game) {
         // Main menu
         drawMainMenu();
     } else {
         // Game
-        drawScore(10,12);
         drawTarget(targetX, targetY);
         updateTargetHit();
         drawReticle(mouseX, mouseY, reticleSpin);
+        drawScore(10,20);
         time += deltaTimeSeconds;
         if (targetsHit >= targetsTarget) {
             game = false;
@@ -195,6 +230,7 @@ fn updateTargetHit() void {
         const dy: f64 = y - ty;
         const distance: f64 = @sqrt(dx * dx + dy * dy);
         if (distance < targetRadius) {
+            iface.playFrequencyChirp(SFX_CHANNEL, 440, 20, 0.5);
             score += @intFromFloat(100 - (distance / targetRadius * 100));
             targetsHit += 1;
             genTargetPosition();
@@ -202,16 +238,50 @@ fn updateTargetHit() void {
     }
 }
 
-export fn mousemove(x: u16, y: u16) void {
-    mouseX = x;
-    mouseY = y;
-}
+var musicPlaying: bool = true;
+var musicTime: f64 = 0.0;
+var playedNote: usize = 0;
+const NOTE_COUNT = 24;
+const musicTimings: [NOTE_COUNT]f64 = [_]f64{
+    0.0, 0.25, 0.5, 0.75, 1.0, 1.25,
+    1.5, 1.75, 2.0, 2.25, 2.5, 2.75,
+    3.0, 3.25, 3.5, 3.75, 4.0, 4.25,
+    4.5, 4.75, 5.0, 5.25, 5.5, 5.75,
+};
+const musicDurations: [NOTE_COUNT]f64 = [_]f64{
+    0.1, 0.25, 0.1, 0.25,
+    0.1, 0.25, 0.1, 0.25,
+    0.1, 0.25, 0.1, 0.25,
+    0.1, 0.25, 0.1, 0.25,
+    0.1, 0.25, 0.1, 0.25,
+    0.1, 0.25, 0.1, 0.25,
+};
+const musicNotes: [NOTE_COUNT]u32 = [_]u32{
+    440, 440, 440, 440, 560, 440, 560, 440,
+    660, 660, 660, 660, 560, 660, 560, 660,
+    770, 770, 770, 770, 880, 770, 880, 770,
+};
+const musicLength = 6.0;
 
-export fn mousedown(button: u8) void {
-    if (button == 0) {
-        mouseDown = true;
-
-        if (game) {
-        }
+fn updateMusic(deltaTimeSeconds: f64) void {
+    if (immediateModeButton(0, canvasHeight-30, "Music", .{.width=90, .height=30})) {
+        musicPlaying = !musicPlaying;
+    }
+    if (!musicPlaying) {
+        return;
+    }
+    musicTime += deltaTimeSeconds;
+    if (musicTime > musicLength) {
+        musicTime = 0;
+        playedNote = 0;
+    }
+    if (playedNote < NOTE_COUNT and musicTime > musicTimings[playedNote]) {
+        iface.playFrequencyChirp(
+            MUSIC_CHANNEL,
+            musicNotes[playedNote],
+            musicNotes[playedNote],
+            musicDurations[playedNote]
+        );
+        playedNote += 1;
     }
 }

@@ -1,4 +1,166 @@
 "use strict";
+
+/**
+ * MyAudioManagerChannel
+ * 
+ * A simple class that represents an oscillator channel.
+ * 
+ * @property {OscillatorNode} oscillator
+ * @property {GainNode} gain
+ */
+class MyAudioManagerChannel {
+    constructor(audioContext, destination) {
+        this.context = audioContext;
+        this.destination = destination;
+        this.oscillator = null;
+        this.gain = null;
+        this.type = 0;
+    }
+
+    /**
+     * Sets the type of the oscillator.
+     * 
+     * @param {0 | 1 | 2 | 3} type - The type of the oscillator.
+     */
+    setType(type) {
+        this.type = type;
+    }
+
+    reset() {
+        if (this.oscillator) {
+            this.oscillator = null;
+            this.gain.disconnect();
+            this.gain = null;
+        }
+        this.oscillator = this.context.createOscillator();
+        const types = ['sine', 'square', 'sawtooth', 'triangle'];
+        this.oscillator.type = types[this.type];
+        this.gain = this.context.createGain();
+        this.oscillator.connect(this.gain);
+        this.gain.connect(this.destination);
+    }
+
+    /**
+     * Plays a chirp on the channel.
+     * 
+     * @param {number} start_frequency
+     * @param {number} end_frequency
+     * @param {number} duration 
+     */
+    playChirp(start_frequency, end_frequency, duration) {
+        this.reset();
+        const currentTime = this.context.currentTime;
+        this.oscillator.frequency.setValueAtTime(start_frequency, currentTime);
+        this.oscillator.frequency.exponentialRampToValueAtTime(end_frequency, currentTime + duration);
+        this.gain.gain.setValueAtTime(1, currentTime);
+        this.gain.gain.exponentialRampToValueAtTime(0.0001, currentTime + duration);
+        this.oscillator.start();
+        this.oscillator.stop(currentTime + duration);
+    }
+
+    /**
+     * Plays a constant tone on the channel.
+     * 
+     * @param {number} frequency
+     */
+    play(frequency) {
+        this.reset();
+        this.oscillator.frequency.value = frequency;
+        this.gain.gain.value = 1;
+        this.oscillator.start();
+    }
+}
+
+/**
+ * MyAudioManager
+ * 
+ * A simple class that manages a number of oscillator channels.
+ * Each channel can be played with a given frequency, duration, and exponential fade.
+ * A global volume can be set to scale all channels.
+ * 
+ * @property {AudioContext} audioContext - The audio context.
+ * @property {GainNode} volumeNode - The volume node.
+ * @property {Array<MyAudioManagerChannel>} audioChannels - The audio channels.
+ */
+class MyAudioManager {
+    constructor() {
+        this.audioContext = new AudioContext();
+        this.volumeNode = this.audioContext.createGain();
+        this.volumeNode.connect(this.audioContext.destination);
+        this.audioChannels = [];
+    }
+
+    /**
+     * Sets the global volume.
+     * 
+     * @param {number} volume - The volume to set.
+     */
+    setVolume(volume) {
+        this.volumeNode.gain.value = volume;
+    }
+
+    /**
+     * Sets the number of channels.
+     * 
+     * @param {number} count - The number of channels to set.
+     */
+    setChannelCount(count) {
+        while (this.audioChannels.length < count) {
+            const new_channel = new MyAudioManagerChannel(this.audioContext, this.volumeNode);
+            this.audioChannels.push(new_channel);
+        }
+        while (this.audioChannels.length > count) {
+            this.audioChannels.pop();
+        }
+    }
+
+    /**
+     * Sets the type of the oscillator on the given channel.
+     * 
+     * @param {number} channel - The channel to set.
+     * @param {0 | 1 | 2 | 3} type - The type of the oscillator.
+     */
+    setChannelType(channel, type) {
+        this.audioChannels[channel].setType(type);
+    }
+
+    /**
+     * Plays a chirp on the given channel.
+     * 
+     * @param {number} channel - The channel to play on.
+     * @param {number} start_frequency - The start frequency of the chirp.
+     * @param {number} end_frequency - The end frequency of the chirp.
+     * @param {number} duration - The duration of the chirp.
+     */
+    playFrequencyChirp(channel, start_frequency, end_frequency, duration) {
+        this.audioChannels[channel].playChirp(start_frequency, end_frequency, duration);
+    }
+
+    /**
+     * Plays a constant tone on the given channel.
+     * 
+     * @param {number} channel - The channel to play on.
+     * @param {number} frequency - The frequency of the tone.
+     */
+    playFrequencyTone(channel, frequency) {
+        this.audioChannels[channel].play(frequency);
+    }
+
+    /**
+     * Halts the audio context.
+     */
+    halt() {
+        this.audioContext.suspend();
+    }
+
+    /**
+     * Runs the audio context.
+     */
+    run() {
+        this.audioContext.resume();
+    }
+}
+
 /**
  * MyWASMCanvasLoader
  * 
@@ -14,6 +176,7 @@
  * @property {boolean} appShouldRun - Whether the application should run or has been halted.
  * @property {boolean} appInitialized - Whether the application has been initialized.
  * @property {Array<[string,Function]>} eventListeners - The event listeners attached to the canvas (for cleanup).
+ * @property {MyAudioManager?} audioManager - The audio manager.
  */
 class MyWASMCanvasLoader {
     /**
@@ -29,6 +192,12 @@ class MyWASMCanvasLoader {
         this.appShouldRun = false;
         this.appInitialized = false;
         this.eventListeners = [];
+        this.audioManager = null;
+        try {
+            this.audioManager = new MyAudioManager();
+        } catch (e) {
+            this.debugError('WebAudio not started: ' + e);
+        }
     }
 
     /* ICKY WEBASSEMBLY INTERNALS */
@@ -73,6 +242,19 @@ class MyWASMCanvasLoader {
                 drawLine: this.drawLine.bind(this),
                 drawText: this.appDrawText.bind(this),
             }
+        }
+
+        if (this.audioManager) {
+            imports.env['setAudioChannelCount'] = this.audioManager.setChannelCount.bind(this.audioManager);
+            imports.env['setAudioChannelType'] = this.audioManager.setChannelType.bind(this.audioManager);
+            imports.env['playFrequencyChirp'] = this.audioManager.playFrequencyChirp.bind(this.audioManager);
+            imports.env['playFrequencyTone'] = this.audioManager.playFrequencyTone.bind(this.audioManager);
+        } else {
+            // Dummy audio functions
+            imports.env['setAudioChannelCount'] = () => { };
+            imports.env['setAudioChannelType'] = () => { };
+            imports.env['playFrequencyChirp'] = () => { };
+            imports.env['playFrequencyTone'] = () => { };
         }
 
         const expected_exports = ['init', 'draw'];
