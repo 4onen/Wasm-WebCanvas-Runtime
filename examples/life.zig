@@ -7,7 +7,7 @@ var mouseX: u16 = 0;
 var mouseY: u16 = 0;
 var mouseDownThisFrame: bool = false;
 var mouseDown: bool = false;
-
+var dragValue: u1 = 0;
 var canvasDirty: bool = true;
 
 const title: []const u8 = "Life";
@@ -34,7 +34,7 @@ export fn mousemove(x: u16, y: u16) void {
         const startY = (mouseY - boardY) / cellSize;
         const endX = (x - boardX) / cellSize;
         const endY = (y - boardY) / cellSize;
-        boardLine(startX, startY, endX, endY);
+        boardLine(startX, startY, endX, endY, dragValue);
     }
 
     mouseX = x;
@@ -52,11 +52,14 @@ export fn mousedown() void {
     const boardX = (canvasWidth - boardSize) / 2;
     const boardY = (canvasHeight - boardSize) / 2;
     if (mouseX < boardX or mouseX > boardX + BOARD_SIDELENGTH * cellSize or mouseY < boardY or mouseY > boardY + BOARD_SIDELENGTH * cellSize) {
+        dragValue = 1;
         return;
     }
     const cellX = (mouseX - boardX) / cellSize;
     const cellY = (mouseY - boardY) / cellSize;
-    board[cellX][cellY] = 1 - board[cellX][cellY];
+    board[cellX][cellY] = ~board[cellX][cellY];
+    dragValue = board[cellX][cellY];
+    canvasDirty = true;
 }
 
 export fn mouseup() void {
@@ -182,47 +185,55 @@ fn updateBoard(deltaTimeSeconds: f64) void {
     board = newBoard;
 }
 
-fn boardLine(x1: u16, y1: u16, x2: u16, y2: u16) void {
-    defer canvasDirty = true;
+fn boardLineLow(x1: u16, y1: u16, x2: u16, y2: u16, value: u1) void {
     // Draw a line on the board from one cell position to another
     // This will be used with the mouse to draw on the board
     // Flip all the cells along the line using Bresenham's line algorithm
-    const x1_signed: i16 = @intCast(x1);
-    const y1_signed: i16 = @intCast(y1);
-    const x2_signed: i16 = @intCast(x2);
-    const y2_signed: i16 = @intCast(y2);
-    const dx: i16 = x2_signed - x1_signed;
-    const dy: i16 = y2_signed - y1_signed;
-    var x: u16 = x1;
-    var y: u16 = x2;
-    const x_inc: i16 = std.math.sign(dx);
-    const y_inc: i16 = std.math.sign(dy);
-    const udx: u16 = @intCast(if(dx<0) -dx else dx);
-    const udy: u16 = @intCast(if(dy<0) -dy else dy);
-    const dx2: i16 = dx * 2;
-    const dy2: i16 = dy * 2;
-    if (dx > dy) {
-        var err: i16 = dy2 - dx;
-        for (0..@as(usize,udx)) |_| {
-            board[@as(usize,@intCast(x))][@as(usize,@intCast(y))] = 1 - board[@as(usize,@intCast(x))][@as(usize,@intCast(y))];
-            if (err > 0) {
-                y = @intCast(@as(i16,@intCast(y))+y_inc);
-                err -= dx2;
-            }
-            err += dy2;
-            x = @intCast(@as(i16,@intCast(x))+x_inc);
+    const dx: i16 = @as(i16,@intCast(x2)) - @as(i16,@intCast(x1));
+    var dy: i16 = @as(i16,@intCast(y2)) - @as(i16,@intCast(y1));
+    var yi: i16 = 1;
+    if (dy < 0) {
+        yi = -1;
+        dy = -dy;
+    }
+    var D: i16 = 2*dy-dx;
+    var y: i16 = @intCast(y1);
+    for (0..@as(usize,@intCast(x2))-@as(usize,@intCast(x1))) |_| {
+        board[@as(usize,@intCast(x1))][@as(usize,@intCast(y))] = value;
+        if (D > 0) {
+            y += yi;
+            D -= 2 * dx;
         }
+        D += 2 * dy;
+    }
+}
+
+fn boardLine(x1: u16, y1: u16, x2: u16, y2: u16, value: u1) void {
+    defer canvasDirty = true;
+    if (x1 == x2) {
+        if (y1 > y2) {
+            for (y2..y1) |y| {
+                board[x1][y] = value;
+            }
+        } else {
+            for (y1..y2) |y| {
+                board[x1][y] = value;
+            }
+        }
+    } else if (y1 == y2) {
+        if (x1 > x2) {
+            for (x2..x1) |x| {
+                board[x][y1] = value;
+            }
+        } else {
+            for (x1..x2) |x| {
+                board[x][y1] = value;
+            }
+        }
+    } else if (x1 < x2) {
+        boardLineLow(x1, y1, x2, y2, value);
     } else {
-        var err: i16 = dx2 - dy;
-        for (0..@as(usize,udy)) |_| {
-            board[@as(usize,@intCast(x))][@as(usize,@intCast(y))] = 1 - board[@as(usize,@intCast(x))][@as(usize,@intCast(y))];
-            if (err > 0) {
-                x = @intCast(@as(i16,@intCast(x))+x_inc);
-                err -= dy2;
-            }
-            err += dx2;
-            y = @intCast(@as(i16,@intCast(y))+y_inc);
-        }
+        boardLineLow(x2, y2, x1, y1, value);
     }
 }
 
