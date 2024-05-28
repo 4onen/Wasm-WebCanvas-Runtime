@@ -117,6 +117,7 @@ const BOARD_SIDELENGTH = 150;
 var board: [BOARD_SIDELENGTH][BOARD_SIDELENGTH]u1 = [_][BOARD_SIDELENGTH]u1{ [_]u1{0}**BOARD_SIDELENGTH } ** BOARD_SIDELENGTH;
 
 fn tileBoardWith(comptime inputWidth: usize, comptime inputHeight: usize, input: [inputWidth][inputHeight]u1) void {
+    defer canvasDirty = true;
     // We want to tile the board with the input pattern
     // If the input pattern is larger than the board, just place it once in the upper left
     // Otherwise, repeat as many times as fit
@@ -182,6 +183,7 @@ fn updateBoard(deltaTimeSeconds: f64) void {
 }
 
 fn boardLine(x1: u16, y1: u16, x2: u16, y2: u16) void {
+    defer canvasDirty = true;
     // Draw a line on the board from one cell position to another
     // This will be used with the mouse to draw on the board
     // Flip all the cells along the line using Bresenham's line algorithm
@@ -280,6 +282,7 @@ fn drawMenu() void {
             tileBoardWith(glider.len, glider[0].len, glider);
         } else if (immediateModeButton(0, 2*buttonHeight, "Clear", .{.width=buttonWidth, .height=buttonHeight})) {
             board = [_][BOARD_SIDELENGTH]u1{ [_]u1{0}**BOARD_SIDELENGTH } ** BOARD_SIDELENGTH;
+            canvasDirty = true;
         } else if (immediateModeButton(0, 3*buttonHeight, "Update", .{.width=buttonWidth, .height=buttonHeight})) {
             updateBoard(999.0);
         } else if (immediateModeButton(0, 4*buttonHeight, "Pause", .{.width=buttonWidth, .height=buttonHeight})) {
