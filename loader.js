@@ -173,6 +173,7 @@ class MyAudioManager {
  * @property {number} debugLineHeight - The height of a debug line in pixels.
  * @property {number} debugConsoleLine - The current line in the debug console.
  * @property {number} targetFrameRate - The target frame rate (set by the application). Default is 30.
+ * @property {number} lastFrameTime - The time of the last frame as reported by requestAnimationFrame.
  * @property {boolean} appShouldRun - Whether the application should run or has been halted.
  * @property {boolean} appInitialized - Whether the application has been initialized.
  * @property {Array<[string,Function]>} eventListeners - The event listeners attached to the canvas (for cleanup).
@@ -559,6 +560,7 @@ class MyWASMCanvasLoader {
      */
     halt() {
         this.appShouldRun = false;
+        this.lastFrameTime = undefined;
         this.debugMessage('Halted');
     }
 
