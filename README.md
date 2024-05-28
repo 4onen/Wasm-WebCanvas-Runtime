@@ -26,7 +26,7 @@ All examples were written in Zig and compiled to WASM. They all use the same int
 
 ### `examples/fizzbuzz.zig`
 
-![A frame from the FizzBuzz example](screenshots/life.png)
+![A frame from the FizzBuzz example](screenshots/fizzbuzz.png)
 
 Simple example that uses the debug interface to print "Fizz" if the number is divisible by 3, "Buzz" if it's divisible by 5, and "FizzBuzz" if it's divisible by both. Otherwise prints the number.
 
