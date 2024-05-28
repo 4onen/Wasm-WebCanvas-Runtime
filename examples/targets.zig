@@ -122,7 +122,7 @@ fn drawScreenFlash(deltaTimeSeconds: f64) void {
     iface.setAlpha(screenFlash);
     drawRectShake(0, 0, @floatFromInt(canvasWidth), @floatFromInt(canvasHeight));
     iface.setAlpha(1.0);
-    screenFlash *= (1.0 - deltaTimeSeconds * 5.0);
+    screenFlash *= @max(0.0,1.0 - deltaTimeSeconds * 5.0);
 }
 
 fn drawTarget(x: u16, y: u16) void {
