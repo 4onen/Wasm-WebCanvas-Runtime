@@ -12,6 +12,9 @@ var canvasDirty: bool = true;
 
 const title: []const u8 = "Life";
 
+const maxFPS = 60;
+const minFPS = 15;
+
 var updateTimer: f64 = 0;
 var updateRate: f64 = 0.5;
 
@@ -148,6 +151,10 @@ fn updateBoard(deltaTimeSeconds: f64) void {
     if (updateTimer < updateRate) {
         return;
     }
+    updateBoardNow();
+}
+
+fn updateBoardNow() void {
     updateTimer = 0;
     canvasDirty = true;
     var newBoard: [BOARD_SIDELENGTH][BOARD_SIDELENGTH]u1 = undefined;
@@ -240,7 +247,7 @@ fn boardLine(x1: u16, y1: u16, x2: u16, y2: u16, value: u1) void {
 export fn init(width: u16, height: u16) void {
     canvasWidth = width;
     canvasHeight = height;
-    iface.setTargetFPS(60);
+    iface.setTargetFPS(minFPS);
     iface.setAudioChannelCount(1);
 }
 
@@ -278,6 +285,19 @@ export fn draw(deltaTimeSeconds: f64) void {
 
 var menuVisible: bool = true;
 
+fn updateUpdateRate(new_rate: f64) void {
+    updateRate = new_rate;
+    // Above is a float number of seconds per update
+    const fps = 1.0 / updateRate;
+    if (fps > maxFPS) {
+        iface.setTargetFPS(maxFPS);
+    } else if (fps < minFPS) {
+        iface.setTargetFPS(minFPS);
+    } else {
+        iface.setTargetFPS(@intFromFloat(fps));
+    }
+}
+
 fn drawMenu() void {
     if (!menuVisible) {
         if (immediateModeButton(0, 0, "V", .{.width=20, .height=20})) {
@@ -295,21 +315,23 @@ fn drawMenu() void {
             board = [_][BOARD_SIDELENGTH]u1{ [_]u1{0}**BOARD_SIDELENGTH } ** BOARD_SIDELENGTH;
             canvasDirty = true;
         } else if (immediateModeButton(0, 3*buttonHeight, "Update", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateBoard(999.0);
+            updateBoardNow();
         } else if (immediateModeButton(0, 4*buttonHeight, "Pause", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate = 999.0;
+            updateUpdateRate(std.math.inf(f64));
         } else if (immediateModeButton(0, 5*buttonHeight, "1 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate = 1.0;
+            updateUpdateRate(1.0);
         } else if (immediateModeButton(0, 6*buttonHeight, "2 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate = 0.5;
+            updateUpdateRate(0.5);
         } else if (immediateModeButton(0, 7*buttonHeight, "10 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate = 0.1;
-        } else if (immediateModeButton(0, 8*buttonHeight, "60 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate = 1.0/60.0;
-        } else if (immediateModeButton(0, 9*buttonHeight, "Faster", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate /= 2;
-        } else if (immediateModeButton(0, 10*buttonHeight, "Slower", .{.width=buttonWidth, .height=buttonHeight})) {
-            updateRate *= 2;
+            updateUpdateRate(0.1);
+        } else if (immediateModeButton(0, 8*buttonHeight, "30 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
+            updateUpdateRate(1.0/30.0);
+        } else if (immediateModeButton(0, 9*buttonHeight, "60 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
+            updateUpdateRate(1.0/60.0);
+        } else if (immediateModeButton(0, 10*buttonHeight, "Faster", .{.width=buttonWidth, .height=buttonHeight})) {
+            updateUpdateRate(updateRate/2);
+        } else if (immediateModeButton(0, 11*buttonHeight, "Slower", .{.width=buttonWidth, .height=buttonHeight})) {
+            updateUpdateRate(updateRate*2);
         }
     }
 }
