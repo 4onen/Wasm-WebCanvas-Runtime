@@ -286,6 +286,10 @@ fn drawMenu() void {
             updateRate = 0.1;
         } else if (immediateModeButton(0, 8*buttonHeight, "60 FPS", .{.width=buttonWidth, .height=buttonHeight})) {
             updateRate = 1.0/60.0;
+        } else if (immediateModeButton(0, 9*buttonHeight, "Faster", .{.width=buttonWidth, .height=buttonHeight})) {
+            updateRate /= 2;
+        } else if (immediateModeButton(0, 10*buttonHeight, "Slower", .{.width=buttonWidth, .height=buttonHeight})) {
+            updateRate *= 2;
         }
     }
 }
