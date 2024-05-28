@@ -444,11 +444,13 @@ class MyWASMCanvasLoader {
             return;
         }
         requestAnimationFrame(this.frameCallback.bind(this));
-        const deltaTime = this.lastFrameTime ? event - this.lastFrameTime : 1000 / this.appTargetFPS;
-        let should_draw = this.lastFrameTime == undefined || deltaTime >= 1000 / this.appTargetFPS;
+        const deltaTimeMs = this.lastFrameTime ? event - this.lastFrameTime : 1000 / this.appTargetFPS;
+        const deltaTimeSeconds = deltaTimeMs / 1000;
+        let should_draw = this.lastFrameTime == undefined || deltaTimeSeconds >= 1 / this.appTargetFPS;
         if (should_draw) {
+            this.lastFrameTime = event;
             try {
-                this.wasmModuleInstance.exports.draw(deltaTime / 1000);
+                this.wasmModuleInstance.exports.draw(deltaTimeSeconds);
             } catch (e) {
                 this.debugError('Error: ' + e);
                 this.halt();
