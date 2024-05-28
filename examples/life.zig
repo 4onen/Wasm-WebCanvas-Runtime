@@ -8,6 +8,8 @@ var mouseY: u16 = 0;
 var mouseDownThisFrame: bool = false;
 var mouseDown: bool = false;
 
+var canvasDirty: bool = true;
+
 const title: []const u8 = "Life";
 
 var updateTimer: f64 = 0;
@@ -141,9 +143,9 @@ fn updateBoard(deltaTimeSeconds: f64) void {
     updateTimer += deltaTimeSeconds;
     if (updateTimer < updateRate) {
         return;
-    } else {
-        updateTimer = 0;
     }
+    updateTimer = 0;
+    canvasDirty = true;
     var newBoard: [BOARD_SIDELENGTH][BOARD_SIDELENGTH]u1 = undefined;
     for (0..BOARD_SIDELENGTH) |x| {
         for (0..BOARD_SIDELENGTH) |y| {
@@ -238,18 +240,21 @@ const glider = [_][5]u1{
 };
 
 export fn draw(deltaTimeSeconds: f64) void {
-    iface.clear();
-    const cellSize = if(canvasHeight > canvasWidth) canvasWidth/BOARD_SIDELENGTH else canvasHeight/BOARD_SIDELENGTH;
-    const boardSize = BOARD_SIDELENGTH * cellSize;
-    const boardX = (canvasWidth - boardSize) / 2;
-    const boardY = (canvasHeight - boardSize) / 2;
-    for (0..BOARD_SIDELENGTH) |x| {
-        for (0..BOARD_SIDELENGTH) |y| {
-            if (board[x][y] == 1) {
-                const cellX = boardX + x * cellSize;
-                const cellY = boardY + y * cellSize;
-                iface.setFillColor(255, 255, 255);
-                iface.drawRect(@floatFromInt(cellX), @floatFromInt(cellY), @floatFromInt(cellSize), @floatFromInt(cellSize));
+    if (canvasDirty) {
+        iface.clear();
+        canvasDirty = false;
+        const cellSize = if(canvasHeight > canvasWidth) canvasWidth/BOARD_SIDELENGTH else canvasHeight/BOARD_SIDELENGTH;
+        const boardSize = BOARD_SIDELENGTH * cellSize;
+        const boardX = (canvasWidth - boardSize) / 2;
+        const boardY = (canvasHeight - boardSize) / 2;
+        for (0..BOARD_SIDELENGTH) |x| {
+            for (0..BOARD_SIDELENGTH) |y| {
+                if (board[x][y] == 1) {
+                    const cellX = boardX + x * cellSize;
+                    const cellY = boardY + y * cellSize;
+                    iface.setFillColor(255, 255, 255);
+                    iface.drawRect(@floatFromInt(cellX), @floatFromInt(cellY), @floatFromInt(cellSize), @floatFromInt(cellSize));
+                }
             }
         }
     }
@@ -270,6 +275,7 @@ fn drawMenu() void {
         const buttonHeight = 40;
         if (immediateModeButton(0, 0, "^", .{.width=20, .height=20})) {
             menuVisible = false;
+            canvasDirty = true;
         } else if (immediateModeButton(0, buttonHeight, "Glider", .{.width=buttonWidth, .height=buttonHeight})) {
             tileBoardWith(glider.len, glider[0].len, glider);
         } else if (immediateModeButton(0, 2*buttonHeight, "Clear", .{.width=buttonWidth, .height=buttonHeight})) {
