@@ -47,3 +47,11 @@ A small game where you click on the target to score points, with an animated mai
 Conway's Game of Life. Click to toggle cells. (Dragging is currently very broken, but fun to fill a board with.)
 
 The buttons on the left side can be hidden and allow changing the speed, clearing the board, and tiling the board with gliders.
+
+### `examples/hanoi.zig`
+
+![A solved frame from the Hanoi swap game](screenshots/hanoi.png)
+
+An implementation of tower*s* of Hanoi -- the challenge here is to swap multiple towers. As visible from the screenshot above, it is possible!
+
+This example was made during my train ride home on June 8th, 2024.
